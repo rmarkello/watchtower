@@ -29,7 +29,11 @@ def get_frames(auth, url, max_pages=100, per_page=100,
     entries = get_entries(auth, url, max_pages=max_pages,
                           per_page=per_page, verbose=verbose,
                           **params)
-    total = sum(entries, [])
+    if max_pages > 1:
+        total = sum(entries, [])
+    else:
+        total = list(entries)[0]
+
     return total
 
 

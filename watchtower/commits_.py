@@ -43,7 +43,7 @@ def load_commits(user, project=None, data_home=None,
     if len(commits) == 0:
         raise ValueError('No commits for this project')
 
-    return commits
+    return commits.sort_values(by='date')
 
 
 def update_commits(user, project=None, auth=None, since=None,
@@ -105,7 +105,18 @@ def update_commits(user, project=None, auth=None, since=None,
                                  per_page=per_page,
                                  verbose=verbose,
                                  **params)
-    raw = pd.DataFrame(raw)
+    # Let's also get commit statistics (additions/deletions/total)
+    raw = pd.DataFrame(raw).assign(deletions=None,
+                                   additions=None,
+                                   total=None)
+    for idx, sha in raw.sha.iteritems():
+        get = url + '/' + sha
+        commit = _github_api.get_frames(auth, get, since=since,
+                                        max_pages=1, per_page=1,
+                                        verbose=verbose,
+                                        **params)
+        for t, v in commit['stats'].items():
+            raw.loc[idx, t] = v
 
     if len(raw) == 0:
         print('No activity found')
@@ -122,7 +133,7 @@ def update_commits(user, project=None, auth=None, since=None,
                            data_home=data_home)
     if old_raw is not None:
         raw = pd.concat([raw, old_raw], ignore_index=True)
-        raw = raw.drop_duplicates(subset=['date'])
+        raw = raw.drop_duplicates(subset=['sha'])
     try:
         os.makedirs(os.path.dirname(filename))
     except OSError:
